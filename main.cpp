@@ -2,6 +2,9 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include "BattleTime.cpp"
+
+enum class Statuses { clear, preset, block, fill }; 
 
 void DrawShip(int length, int startX, int startY) {
     for (int i = 0; i < length; i++) {
@@ -9,10 +12,24 @@ void DrawShip(int length, int startX, int startY) {
     }
 }
 
+std::vector<bool> PlayField(std::map<std::pair<int, int>, Statuses> &Field)
+{
+    
+    std::vector<bool> Play;
+        for (auto& [coord,status]: Field)
+        {
+            if (status == Statuses::fill)
+                Play.push_back(true);
+            else
+                Play.push_back(false);
+        } 
+    return Play;
+}
+
 int main() {
     InitWindow(1280, 720, "Raylib");
 
-    enum class Statuses { clear, preset, block, fill }; 
+    
 
     std::vector<int> SizeShips{1,1,1,1,2,2,2,3,3,4};
     int place_ships = 4;
@@ -110,19 +127,79 @@ int main() {
                 status = Statuses::clear;
         }
 
-        DrawShip(4, 300, 100);
+        /*DrawShip(4, 300, 100);
         DrawShip(3, 300, 150);
         DrawShip(2, 300, 200);
-        DrawShip(1, 300, 250);
+        DrawShip(1, 300, 250);*/
 
         if (SizeShips.empty())
         {
-
             DrawRectangleRec({100, 250, 50, 25}, BLUE);
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                if (CheckCollisionPointRec(mousePos, {100, 250, 50, 25}))
+                {
+                    //BattleField(Field); //через лямбду в другое окно UPDATE: или нет
+
+                    EndDrawing();
+                    CloseWindow();
+                    break;
+                } 
+            }
         }
 
         EndDrawing();
     }
+
+    InitWindow(1280, 720, "Playtime");
+
+    std::vector<bool> OpenedCells(100, false); 
+    auto Play = PlayField(Field);
+    auto EnemyPlay = Play;
+
+    while (!WindowShouldClose()) {
+        Vector2 mousePos = GetMousePosition();
+
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        for (int x = 0; x < 10; x++) {
+            for (int y = 0; y < 10; y++) {
+                Rectangle cellRect = {20.0f * x, 20.0f * y, 19.0f, 19.0f};
+                if (Play[10 * x + y])
+                    DrawRectangleRec(cellRect, RED);
+                else
+                    DrawRectangleRec(cellRect, WHITE);
+                DrawRectangleLinesEx(cellRect, 1, BLACK);
+            }
+        }
+
+        for (int x = 0; x < 10; x++) {
+            for (int y = 0; y < 10; y++) {
+                Rectangle cellRect = {500 + 20.0f * x, 20.0f * y, 19.0f, 19.0f};
+                
+                if (OpenedCells[10 * x + y]) {
+                    if (EnemyPlay[10 * x + y])
+                        DrawRectangleRec(cellRect, RED);
+                    else
+                        DrawRectangleRec(cellRect, BLACK);
+                } else {
+                    DrawRectangleRec(cellRect, WHITE);
+                }
+                
+                DrawRectangleLinesEx(cellRect, 1, BLACK);
+
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    if (CheckCollisionPointRec(mousePos, cellRect)) {
+                        OpenedCells[10 * x + y] = true;
+                    }
+                }
+            }
+        }
+
+        EndDrawing();
+    }
+
 
     CloseWindow();
 
