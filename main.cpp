@@ -2,7 +2,6 @@
 #include <iostream>
 #include <map>
 #include <vector>
-#include "BattleTime.cpp"
 
 enum class Statuses { clear, preset, block, fill }; 
 
@@ -12,19 +11,6 @@ void DrawShip(int length, int startX, int startY) {
     }
 }
 
-std::vector<bool> PlayField(std::map<std::pair<int, int>, Statuses> &Field)
-{
-    
-    std::vector<bool> Play;
-        for (auto& [coord,status]: Field)
-        {
-            if (status == Statuses::fill)
-                Play.push_back(true);
-            else
-                Play.push_back(false);
-        } 
-    return Play;
-}
 
 int main() {
     InitWindow(1280, 720, "Raylib");
@@ -153,9 +139,31 @@ int main() {
 
     InitWindow(1280, 720, "Playtime");
 
-    std::vector<bool> OpenedCells(100, false); 
-    auto Play = PlayField(Field);
-    auto EnemyPlay = Play;
+    enum class CellState {
+    Hidden,     // Неоткрытая клетка
+    Miss,       // Промах
+    Hit,        // Попадание по кораблю
+    Ship        // Клетка с кораблём, видимая только игроку
+    };
+
+    bool player_turn{true};
+
+    std::vector<CellState> PlayerField(100, CellState::Hidden); 
+    std::vector<CellState> EnemyField(100, CellState::Hidden);  
+
+    int count_live_player = 20;
+    int count_live_bot = 20;
+
+    for (int i = 0;i<10;i++)
+    {
+        for (int j = 0;j<10;j++)
+        {
+            if (Field[{i,j}] == Statuses::fill)
+                PlayerField[10*i+j] = CellState::Ship;
+        }
+    }
+
+    EnemyField = PlayerField;
 
     while (!WindowShouldClose()) {
         Vector2 mousePos = GetMousePosition();
@@ -166,10 +174,23 @@ int main() {
         for (int x = 0; x < 10; x++) {
             for (int y = 0; y < 10; y++) {
                 Rectangle cellRect = {20.0f * x, 20.0f * y, 19.0f, 19.0f};
-                if (Play[10 * x + y])
-                    DrawRectangleRec(cellRect, RED);
-                else
-                    DrawRectangleRec(cellRect, WHITE);
+
+                int cellIndex = 10 * x + y;
+
+                switch (PlayerField[cellIndex]) {
+                case CellState::Hidden: 
+                    DrawRectangleRec(cellRect, LIGHTGRAY); 
+                    break;
+                case CellState::Ship: 
+                    DrawRectangleRec(cellRect, BLUE); 
+                    break;
+                case CellState::Miss: 
+                    DrawRectangleRec(cellRect, BLACK); 
+                    break;
+                case CellState::Hit: 
+                    DrawRectangleRec(cellRect, RED); 
+                    break;
+                }
                 DrawRectangleLinesEx(cellRect, 1, BLACK);
             }
         }
@@ -177,23 +198,70 @@ int main() {
         for (int x = 0; x < 10; x++) {
             for (int y = 0; y < 10; y++) {
                 Rectangle cellRect = {500 + 20.0f * x, 20.0f * y, 19.0f, 19.0f};
-                
-                if (OpenedCells[10 * x + y]) {
-                    if (EnemyPlay[10 * x + y])
-                        DrawRectangleRec(cellRect, RED);
-                    else
-                        DrawRectangleRec(cellRect, BLACK);
-                } else {
-                    DrawRectangleRec(cellRect, WHITE);
-                }
-                
+                int cellIndex = 10 * x + y;
+
+                switch (EnemyField[cellIndex]) {
+                case CellState::Hidden: 
+                    DrawRectangleRec(cellRect, LIGHTGRAY); 
+                    break;
+                case CellState::Miss: 
+                    DrawRectangleRec(cellRect, BLACK); 
+                    break;
+                case CellState::Hit: 
+                    DrawRectangleRec(cellRect, RED); 
+                    break;
+                default:
+                    DrawRectangleRec(cellRect, LIGHTGRAY); 
+                    break;
+            }
+
                 DrawRectangleLinesEx(cellRect, 1, BLACK);
 
-                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                    if (CheckCollisionPointRec(mousePos, cellRect)) {
-                        OpenedCells[10 * x + y] = true;
+                if (player_turn){
+                    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                        if (CheckCollisionPointRec(mousePos, cellRect)) {
+                            if (EnemyField[cellIndex] == CellState::Ship)
+                            {
+                                EnemyField[cellIndex] = CellState::Hit;
+                                count_live_bot--;
+                                if(count_live_bot == 0)
+                                {
+                                    EndDrawing();
+                                    CloseWindow();
+                                }
+                            }
+                            if (EnemyField[cellIndex] == CellState::Hidden)
+                            {
+                                EnemyField[cellIndex] = CellState::Miss;
+                                player_turn = false;
+                            }
+                        }
                     }
                 }
+                if (!player_turn) {
+                    while (true) {
+                        int x = GetRandomValue(0, 9);
+                        int y = GetRandomValue(0, 9);
+                        int cellIndex = 10 * x + y;
+
+                        if (PlayerField[cellIndex] != CellState::Miss) {
+                            if (PlayerField[cellIndex] == CellState::Ship) {
+                                PlayerField[cellIndex] = CellState::Hit;
+                                count_live_player--;
+                                if(count_live_player == 0)
+                                {
+                                    EndDrawing();
+                                    CloseWindow();
+                                }
+                            } 
+                            if (PlayerField[cellIndex] == CellState::Hidden)
+                                PlayerField[cellIndex] = CellState::Miss;
+                                player_turn = true;
+                            }
+                            break;
+                        }
+                    }
+                
             }
         }
 
