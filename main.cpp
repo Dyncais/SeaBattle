@@ -166,7 +166,7 @@ int main() {
                     std::cerr << "Ошибка: сервер не создан!" << std::endl;
                     break;
                 }
-                std::cout << "Сервер создан на порту 1234." << std::endl;
+                std::cout << "Сервер создан на порту " << address.port << std::endl;
                 current_state = SceneState::HostLobby;
 
             } else if (IsKeyPressed(KEY_SPACE)) {
@@ -226,7 +226,13 @@ int main() {
             ENetEvent event = {};
             if (enet_host_service(client, &event, 5000) > 0) { 
                 if (event.type == ENET_EVENT_TYPE_CONNECT) {      
-                    puts ("Connection to some.server.net:1234 succeeded.");             
+                    puts ("Connection to some.server.net:1234 succeeded.");   
+                    //sending a package so the server knows that you connected
+                    ENetPacket * packet = enet_packet_create ("packet", 
+                                          strlen ("packet") + 1, 
+                                          ENET_PACKET_FLAG_RELIABLE);     
+                    enet_peer_send (peer, 0, packet);  
+                    enet_host_flush (client);   
                     current_state = SceneState::Preparation;
                 }
             }
